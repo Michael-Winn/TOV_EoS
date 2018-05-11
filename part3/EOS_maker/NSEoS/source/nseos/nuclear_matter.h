@@ -13,6 +13,7 @@ struct hnm
     double jsym;
     double lsym;
     double ksym;
+    double speed_of_sound;
 };
 
 // Meta-model, see: Margueron et al. (2018)

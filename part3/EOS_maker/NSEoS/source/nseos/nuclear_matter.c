@@ -29,6 +29,7 @@ double calc_meta_model_low_density_correction_second_derivative(struct parameter
 struct hnm calc_meta_model_nuclear_matter(struct parameters satdata, int max_order, double nn_, double ii_)
 {
     double tmp;
+    double K_is;
     double xx;
     float t0fac, t0fg;
     double a00, a10, a20, a30, a40;
@@ -41,7 +42,10 @@ struct hnm calc_meta_model_nuclear_matter(struct parameters satdata, int max_ord
     double epotpernuc;
     double dekinpernucdx;
     double depotpernucdx;
+    double ddekinpernucdx;
+    double ddepotpernucdx;
     double denpernucdx;
+    double ddenpernucdx;
     double dekinpernucdi;
     double depotpernucdi;
     double denpernucdi;
@@ -81,6 +85,16 @@ struct hnm calc_meta_model_nuclear_matter(struct parameters satdata, int max_ord
         *( cpow((1.+ii_),5./3.)*(1.+(satdata.barm+satdata.bardel*ii_)*(1.+3.*xx))
                 +  cpow((1.-ii_),5./3.)*(1.+(satdata.barm-satdata.bardel*ii_)*(1.+3.*xx)) )
         + 0.5*t0fg*cpow((1.+3.*xx),2./3.)
+        *( cpow((1.+ii_),5./3.)*3.*(satdata.barm+satdata.bardel*ii_)
+                + cpow((1.-ii_),5./3.)*3.*(satdata.barm-satdata.bardel*ii_));
+
+    ddekinpernucdx = - t0fg * cpow((1+3*xx),-4/3)
+                    *(cpow((1.+ii_),5./3.)*(1.+(satdata.barm+satdata.bardel*ii_)*(1.+3.*xx))
+                +  cpow((1.-ii_),5./3.)*(1.+(satdata.barm-satdata.bardel*ii_)*(1.+3.*xx)))
+                +t0fg*cpow((1.+3.*xx),-1./3.) * 
+                (3*cpow((1.+ii_),5./3.)*(1.+(satdata.barm+satdata.bardel*ii_))
+                +3*cpow((1.-ii_),5./3.)*(1.+(satdata.barm-satdata.bardel*ii_)))
+                +0.5*t0fg * cpow((1.+3.*xx),-1./3.)
         *( cpow((1.+ii_),5./3.)*3.*(satdata.barm+satdata.bardel*ii_)
                 + cpow((1.-ii_),5./3.)*3.*(satdata.barm-satdata.bardel*ii_));
 
@@ -141,6 +155,14 @@ struct hnm calc_meta_model_nuclear_matter(struct parameters satdata, int max_ord
                     + a22*xx*u2 + 0.5*a22*xx*xx*u2p
                     + a32/6.*(3.*xx*xx*u3 + xx*xx*xx*u3p)
                     + a42/24.*(4.*xx*xx*xx*u4+xx*xx*xx*xx*u4p));
+        ddepotpernucdx = a10*u1p
+            +  a20*u2 + a20*xx*u2p 
+            + a30/6.*(6.*xx*u3 + 3.*xx*xx*u3p)
+            + a40/24.*(12.*xx*xx*u4+4*xx*xx*xx*u4p)
+            +  ii_*ii_*( a12*u1p
+                    + a22*u2 + a22*xx*u2p
+                    + a32/6.*(6.*xx*u3 + 3.*xx*xx*u3p)
+                    + a42/24.*(12.*xx*xx*u4+4*xx*xx*xx*u4p));
         depotpernucdi = 2.*ii_*(a02*u0 + a12*xx*u1 + 0.5*a22*xx*xx*u2 + 1./6.*a32*xx*xx*xx*u3 + 1./24.*a42*xx*xx*xx*xx*u4);
 
         result.jsym = 5./9.*t0fg*pow(1.+3.*xx,2./3.)*(1.+satdata.barm*(1.+3.*xx))
@@ -185,8 +207,14 @@ struct hnm calc_meta_model_nuclear_matter(struct parameters satdata, int max_ord
 
     denpernucdx = dekinpernucdx + depotpernucdx;
     denpernucdi = dekinpernucdi + depotpernucdi;
-
+    ddenpernucdx = ddekinpernucdx + ddepotpernucdx;
     result.p = 1./3.*satdata.rhosat0*pow(1.+3.*xx,2.)*denpernucdx;
+
+    K_is = 9*1./3.*satdata.rhosat0*pow(1.+3.*xx,2.)*ddenpernucdx + 18*result.p/satdata.rhosat0;
+    result.speed_of_sound = sqrt(K_is/(9*(RMN+result.enpernuc+result.p/satdata.rhosat0)));
+    if(speed_of_sound => 1){
+        fprintf(stderr, "Causality is broken speed_of_sound/c >1 \n");
+    }
 
     if (nn_ == 0.)
         result.mun = 0.;
